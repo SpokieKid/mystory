@@ -25,7 +25,7 @@ export function getAuthorizationUrl(state: string): string {
     client_id: process.env.SECONDME_CLIENT_ID!,
     redirect_uri: process.env.SECONDME_REDIRECT_URI!,
     response_type: 'code',
-    scope: 'user.info user.info.shades user.info.softmemory chat',
+    scope: 'user.info user.info.shades user.info.softmemory chat voice',
     state,
   });
   return `${SECONDME_AUTH_URL}?${params.toString()}`;
@@ -126,4 +126,67 @@ ${previousDialogues.length > 0 ? previousDialogues.join('\n') : '（这是第一
   }
 
   return content.trim();
+}
+
+/**
+ * 生成语音 - 使用用户的 Second Me 声音
+ */
+export async function generateVoice(
+  accessToken: string,
+  text: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(`${SECONDME_BASE_URL}/api/secondme/voice`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      console.error('Voice generation failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.code !== 0) {
+      console.error('Voice generation error:', data.message);
+      return null;
+    }
+
+    // 返回音频 URL
+    return data.data?.url || data.data?.audioUrl || null;
+  } catch (err) {
+    console.error('Voice generation error:', err);
+    return null;
+  }
+}
+
+/**
+ * 生成对话 + 语音
+ */
+export async function generateDialogueWithVoice(
+  accessToken: string,
+  characterName: string,
+  characterDescription: string,
+  secretInfo: string,
+  scenePrompt: string,
+  previousDialogues: string[]
+): Promise<{ text: string; audioUrl: string | null }> {
+  // 先生成文本
+  const text = await generateDialogue(
+    accessToken,
+    characterName,
+    characterDescription,
+    secretInfo,
+    scenePrompt,
+    previousDialogues
+  );
+
+  // 再生成语音
+  const audioUrl = await generateVoice(accessToken, text);
+
+  return { text, audioUrl };
 }

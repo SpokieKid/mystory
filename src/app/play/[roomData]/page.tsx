@@ -252,8 +252,26 @@ function PlayContent() {
                             {!isMyCharacter && hasPlayerCharacter && (
                               <span className="text-xs bg-gray-500/30 text-gray-400 px-2 py-0.5 rounded">AI</span>
                             )}
+                            {dialogue.audioUrl && (
+                              <button
+                                onClick={() => {
+                                  const audio = new Audio(dialogue.audioUrl!);
+                                  audio.play();
+                                }}
+                                className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded hover:bg-green-500/50 transition"
+                              >
+                                🔊 播放语音
+                              </button>
+                            )}
                           </div>
                           <p className="text-gray-300 pl-10">{dialogue.content}</p>
+                          {dialogue.audioUrl && (
+                            <audio 
+                              src={dialogue.audioUrl} 
+                              controls 
+                              className="mt-2 ml-10 h-8 w-full max-w-xs"
+                            />
+                          )}
                         </div>
                       );
                     })}

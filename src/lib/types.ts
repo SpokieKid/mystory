@@ -63,6 +63,7 @@ export interface Dialogue {
   odPlayerId: string;
   characterId: string;
   content: string;
+  audioUrl?: string | null;  // 语音 URL
   timestamp: string;
   scene: number;
 }
