@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
-import { Script, Character } from '@/lib/types';
+import { Script } from '@/lib/types';
 
-function decodeRoom(encoded: string): any | null {
+function decodeRoom(encoded: string): Record<string, unknown> | null {
   try {
     return JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')));
   } catch {
@@ -13,26 +13,37 @@ function decodeRoom(encoded: string): any | null {
   }
 }
 
+function LoadingScreen() {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="text-center animate-fade-in">
+        <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
+        <p className="text-zinc-500 text-sm">Setting up the room...</p>
+      </div>
+    </main>
+  );
+}
+
 export default function WaitingPage() {
   const params = useParams();
   const roomData = params.roomData as string;
-  
-  const [room, setRoom] = useState<any>(null);
+
+  const [room, setRoom] = useState<Record<string, unknown> | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [copied, setCopied] = useState(false);
   const [players, setPlayers] = useState<Array<{ name: string; characterId?: string; ready: boolean }>>([]);
   const [polling, setPolling] = useState(true);
-  
-  // 角色分配状态
+
+  // Character selection state
   const [showCharacterSelect, setShowCharacterSelect] = useState(false);
-  const [selectedCharacters, setSelectedCharacters] = useState<Record<string, string>>({}); // odPlayerId -> characterId
+  const [selectedCharacters, setSelectedCharacters] = useState<Record<string, string>>({});
   const [mySelectedCharacter, setMySelectedCharacter] = useState<string | null>(null);
-  
-  const inviteLink = typeof window !== 'undefined' 
+
+  const inviteLink = typeof window !== 'undefined'
     ? `${window.location.origin}/join/${roomData}`
     : '';
 
-  // 轮询房间状态
+  // Poll room status
   const pollRoom = useCallback(async (roomId: string) => {
     try {
       const res = await fetch(`/api/game/room?roomId=${roomId}`);
@@ -51,12 +62,12 @@ export default function WaitingPage() {
       setRoom(decoded);
       const s = SCRIPTS.find(s => s.id === decoded.scriptId);
       setScript(s || null);
-      
-      pollRoom(decoded.id);
+
+      pollRoom(decoded.id as string);
       const interval = setInterval(() => {
-        if (polling) pollRoom(decoded.id);
+        if (polling) pollRoom(decoded.id as string);
       }, 2000);
-      
+
       return () => clearInterval(interval);
     }
   }, [roomData, polling, pollRoom]);
@@ -67,7 +78,6 @@ export default function WaitingPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 计算未被选择的角色（给 AI）
   const getAICharacters = () => {
     if (!script) return [];
     const selectedIds = Object.values(selectedCharacters);
@@ -76,134 +86,190 @@ export default function WaitingPage() {
   };
 
   const startGame = () => {
-    // 构建角色分配信息
     const aiCharacterIds = getAICharacters().map(c => c.id);
     const playerCharacterIds = mySelectedCharacter ? [mySelectedCharacter] : [];
-    
-    // 跳转到游戏页面，带上角色分配信息
-    const params = new URLSearchParams();
+
+    const searchParams = new URLSearchParams();
     if (playerCharacterIds.length > 0) {
-      params.set('playerCharacters', playerCharacterIds.join(','));
+      searchParams.set('playerCharacters', playerCharacterIds.join(','));
     }
     if (aiCharacterIds.length > 0) {
-      params.set('aiCharacters', aiCharacterIds.join(','));
+      searchParams.set('aiCharacters', aiCharacterIds.join(','));
     }
-    
-    window.location.href = `/play/${roomData}?${params.toString()}`;
+
+    window.location.href = `/play/${roomData}?${searchParams.toString()}`;
   };
 
   const canStart = mySelectedCharacter !== null;
 
   if (!script) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl animate-pulse">加载中...</div>
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   const aiCharacters = getAICharacters();
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute top-20 left-20 w-72 h-72 bg-red-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      
-      <div className="max-w-lg w-full text-center relative z-10">
-        <div className="text-6xl mb-4">{script.cover}</div>
-        
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {script.title}
-        </h1>
-        <p className="text-gray-400 mb-6">
-          {showCharacterSelect ? '选择你要扮演的角色' : '房间已创建'}
-        </p>
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Atmospheric orbs */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-red-900/15 rounded-full blur-[120px] animate-breathe pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-900/10 rounded-full blur-[140px] animate-breathe pointer-events-none" style={{ animationDelay: '2s' }} />
+
+      <div className="max-w-lg w-full relative z-10">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="relative inline-block mb-4 animate-fade-in-down">
+            <div className="absolute inset-0 bg-red-500/15 rounded-full blur-xl scale-150" />
+            <div className="relative text-6xl animate-float">{script.cover}</div>
+          </div>
+
+          <h1 className="text-3xl font-black text-white mb-2 animate-fade-in-up delay-100" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            {script.title}
+          </h1>
+          <p className="text-zinc-400 text-sm animate-fade-in-up delay-200">
+            {showCharacterSelect ? 'Choose your character' : 'Room created - invite players or start'}
+          </p>
+        </div>
 
         {!showCharacterSelect ? (
           <>
-            {/* 玩家列表 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
-              <h3 className="text-white font-medium mb-3">已加入的玩家</h3>
-              <div className="space-y-2 mb-4">
+            {/* Player list */}
+            <div className="glass-card p-5 mb-5 animate-fade-in-up delay-300">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium">Players</h3>
+                <span className="text-xs text-zinc-600">
+                  {players.length}/{script.playerCount.max}
+                </span>
+              </div>
+              <div className="space-y-2">
                 {players.map((player, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{i === 0 ? '👑' : '🎮'}</span>
-                      <span className="text-white">{player.name}</span>
+                  <div
+                    key={i}
+                    className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3 border border-white/5 hover:border-white/10 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500/20 to-purple-500/20 flex items-center justify-center text-sm border border-white/10">
+                        {i === 0 ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5.09 20h13.82"/></svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                        )}
+                      </div>
+                      <span className="text-white text-sm font-medium">{player.name}</span>
                     </div>
-                    {player.ready && <span className="text-green-400 text-sm">✓ 已准备</span>}
+                    {player.ready && (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        Ready
+                      </span>
+                    )}
+                  </div>
+                ))}
+
+                {/* Empty slots */}
+                {Array.from({ length: Math.max(0, script.playerCount.min - players.length) }).map((_, i) => (
+                  <div
+                    key={`empty-${i}`}
+                    className="flex items-center gap-3 rounded-xl p-3 border border-dashed border-white/10"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-white/[0.02] flex items-center justify-center">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                    </div>
+                    <span className="text-zinc-600 text-sm">Waiting for player...</span>
                   </div>
                 ))}
               </div>
-              
-              <p className="text-gray-500 text-sm">
-                剧本需要 {script.playerCount.min}-{script.playerCount.max} 名角色
+
+              <p className="text-zinc-600 text-xs mt-4 text-center">
+                Needs {script.playerCount.min}-{script.playerCount.max} roles
                 {players.length < script.characters.length && (
-                  <span className="text-yellow-500 ml-1">
-                    （不足的角色由 AI 扮演）
-                  </span>
+                  <span className="text-amber-500/80 ml-1">(AI fills remaining)</span>
                 )}
               </p>
             </div>
 
-            {/* 邀请链接 */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6">
-              <p className="text-white/60 text-sm mb-3">邀请链接</p>
-              <div className="bg-black/30 rounded-xl p-3 mb-4 break-all text-xs text-red-400 max-h-20 overflow-auto">
+            {/* Invite section */}
+            <div className="glass-card-strong p-5 mb-5 animate-fade-in-up delay-400">
+              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-3">Invite Link</p>
+              <div className="bg-black/40 rounded-xl p-3 mb-4 font-mono text-xs text-red-400/80 break-all max-h-16 overflow-auto border border-white/5">
                 {inviteLink}
               </div>
-              
-              <button
-                onClick={copyLink}
-                className="w-full bg-white/10 text-white font-bold py-3 rounded-full hover:bg-white/20 transition-all mb-3"
-              >
-                {copied ? '✅ 已复制' : '📋 复制邀请链接'}
-              </button>
 
-              <button
-                onClick={() => setShowCharacterSelect(true)}
-                className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-3 rounded-full hover:from-red-500 hover:to-red-400 transition-all"
-              >
-                🎭 选择角色并开始
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={copyLink}
+                  className="btn-secondary text-sm py-3"
+                >
+                  <span className="relative z-10">
+                    {copied ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg>
+                        Copied
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        Copy
+                      </span>
+                    )}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setShowCharacterSelect(true)}
+                  className="btn-primary text-sm py-3"
+                >
+                  <span>Choose Role</span>
+                </button>
+              </div>
             </div>
           </>
         ) : (
           <>
-            {/* 角色选择 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
-              <h3 className="text-white font-medium mb-4">选择你的角色</h3>
+            {/* Character selection */}
+            <div className="glass-card p-5 mb-5 animate-scale-in">
+              <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-5 text-center">Select Your Character</h3>
               <div className="space-y-3">
-                {script.characters.map((char) => {
+                {script.characters.map((char, i) => {
                   const isSelected = mySelectedCharacter === char.id;
                   const isTakenByOther = Object.values(selectedCharacters).includes(char.id);
-                  
+
                   return (
                     <button
                       key={char.id}
-                      onClick={() => !isTakenByOther && setMySelectedCharacter(char.id)}
+                      onClick={() => !isTakenByOther && setMySelectedCharacter(isSelected ? null : char.id)}
                       disabled={isTakenByOther}
-                      className={`w-full p-4 rounded-xl text-left transition-all border-2 ${
+                      className={`w-full text-left transition-all duration-300 rounded-xl border-2 p-4 ${
                         isSelected
-                          ? 'bg-red-500/30 border-red-500'
+                          ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_20px_rgba(220,38,38,0.15)]'
                           : isTakenByOther
-                            ? 'bg-gray-500/20 border-gray-600 opacity-50 cursor-not-allowed'
-                            : 'bg-white/5 border-transparent hover:border-red-500/50'
+                            ? 'bg-zinc-900/50 border-zinc-800 opacity-40 cursor-not-allowed'
+                            : 'bg-white/[0.02] border-transparent hover:border-white/15 hover:bg-white/[0.04]'
                       }`}
+                      style={{ animationDelay: `${i * 80}ms` }}
                     >
-                      <div className="flex items-start gap-3">
-                        <span className="text-3xl">{char.avatar}</span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-white font-medium">{char.name}</span>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 transition-all duration-300 ${
+                          isSelected ? 'bg-red-500/20 border border-red-500/30' : 'bg-white/5 border border-white/10'
+                        }`}>
+                          {char.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`font-semibold transition-colors duration-300 ${isSelected ? 'text-red-400' : 'text-white'}`}>
+                              {char.name}
+                            </span>
                             {isSelected && (
-                              <span className="text-xs bg-red-500 px-2 py-1 rounded text-white">你的角色</span>
+                              <span className="text-[10px] uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">
+                                Your Role
+                              </span>
                             )}
                             {isTakenByOther && (
-                              <span className="text-xs bg-gray-600 px-2 py-1 rounded text-white">其他玩家</span>
+                              <span className="text-[10px] uppercase tracking-wider bg-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full font-bold">
+                                Taken
+                              </span>
                             )}
                           </div>
-                          <p className="text-gray-400 text-sm mt-1">{char.description}</p>
+                          <p className="text-zinc-500 text-sm mt-1 leading-relaxed">{char.description}</p>
                         </div>
                       </div>
                     </button>
@@ -212,27 +278,31 @@ export default function WaitingPage() {
               </div>
             </div>
 
-            {/* AI 角色预览 */}
+            {/* AI roles preview */}
             {mySelectedCharacter && aiCharacters.length > 0 && (
-              <div className="bg-purple-500/10 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-purple-500/30">
-                <h3 className="text-purple-300 font-medium mb-3">🤖 AI 将扮演</h3>
-                <div className="flex flex-wrap gap-2 justify-center">
+              <div className="glass-card p-4 mb-5 border-purple-500/20 animate-fade-in-up" style={{ background: 'rgba(139, 92, 246, 0.05)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                  <h3 className="text-xs uppercase tracking-[0.15em] text-purple-400 font-medium">AI-Controlled Roles</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   {aiCharacters.map(char => (
-                    <div key={char.id} className="bg-white/5 rounded-lg px-3 py-2 flex items-center gap-2">
-                      <span className="text-xl">{char.avatar}</span>
-                      <span className="text-white text-sm">{char.name}</span>
+                    <div key={char.id} className="inline-flex items-center gap-2 bg-white/[0.03] rounded-lg px-3 py-2 border border-purple-500/10">
+                      <span className="text-lg">{char.avatar}</span>
+                      <span className="text-zinc-300 text-sm">{char.name}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Action buttons */}
             <button
               onClick={startGame}
               disabled={!canStart}
-              className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-4 rounded-full hover:from-red-500 hover:to-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+              className="btn-primary w-full text-lg py-4 mb-4 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none animate-fade-in-up delay-200"
             >
-              🎬 开始游戏
+              <span>Start the Game</span>
             </button>
 
             <button
@@ -240,15 +310,17 @@ export default function WaitingPage() {
                 setShowCharacterSelect(false);
                 setMySelectedCharacter(null);
               }}
-              className="text-gray-500 hover:text-white transition-colors"
+              className="w-full text-center text-zinc-500 hover:text-zinc-300 transition-colors text-sm py-2"
             >
-              ← 返回
+              <svg className="inline-block w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+              Back to lobby
             </button>
           </>
         )}
 
-        <a href="/" className="block mt-6 text-gray-500 hover:text-white">
-          ← 返回首页
+        <a href="/" className="block mt-8 text-center text-zinc-600 hover:text-zinc-400 transition-colors text-sm animate-fade-in delay-600">
+          <svg className="inline-block w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          Home
         </a>
       </div>
     </main>

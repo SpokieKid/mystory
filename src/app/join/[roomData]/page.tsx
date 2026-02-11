@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
 import { Script } from '@/lib/types';
 
-function decodeRoom(encoded: string): any | null {
+function decodeRoom(encoded: string): Record<string, unknown> | null {
   try {
     return JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')));
   } catch {
@@ -13,11 +13,22 @@ function decodeRoom(encoded: string): any | null {
   }
 }
 
+function LoadingScreen() {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="text-center animate-fade-in">
+        <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
+        <p className="text-zinc-500 text-sm">Loading invitation...</p>
+      </div>
+    </main>
+  );
+}
+
 export default function JoinPage() {
   const params = useParams();
   const roomData = params.roomData as string;
-  
-  const [room, setRoom] = useState<any>(null);
+
+  const [room, setRoom] = useState<Record<string, unknown> | null>(null);
   const [script, setScript] = useState<Script | null>(null);
 
   useEffect(() => {
@@ -34,54 +45,77 @@ export default function JoinPage() {
   };
 
   if (!script || !room) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl animate-pulse">加载中...</div>
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute top-20 left-20 w-72 h-72 bg-red-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Atmospheric orbs */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-red-900/15 rounded-full blur-[120px] animate-breathe pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-900/10 rounded-full blur-[140px] animate-breathe pointer-events-none" style={{ animationDelay: '2s' }} />
+
       <div className="max-w-md w-full text-center relative z-10">
-        <div className="text-6xl mb-4">{script.cover}</div>
-        
-        <h1 className="text-3xl font-bold text-white mb-2">
+        {/* Script cover with glow */}
+        <div className="relative inline-block mb-6 animate-fade-in-down">
+          <div className="absolute inset-0 bg-red-500/20 rounded-full blur-2xl scale-150" />
+          <div className="relative text-7xl animate-float">{script.cover}</div>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-3xl md:text-4xl font-black text-white mb-3 animate-fade-in-up delay-100" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
           {script.title}
         </h1>
-        <p className="text-gray-400 mb-2">{room.hostName} 邀请你加入</p>
-        <p className="text-gray-500 text-sm mb-8">{script.description}</p>
 
-        {/* 角色预览 */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
-          <h3 className="text-white font-medium mb-3">可选角色</h3>
-          <div className="flex justify-center gap-2 flex-wrap">
-            {script.characters.map((char) => (
-              <div key={char.id} className="bg-white/5 rounded-xl p-3 text-center">
-                <div className="text-3xl mb-1">{char.avatar}</div>
-                <div className="text-white text-xs">{char.name}</div>
+        {/* Host invitation */}
+        <div className="inline-flex items-center gap-2 bg-white/5 rounded-full px-4 py-2 mb-3 animate-fade-in-up delay-200">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-zinc-400 text-sm">
+            <span className="text-white font-medium">{room.hostName as string}</span> invited you
+          </span>
+        </div>
+
+        <p className="text-zinc-500 text-sm mb-8 animate-fade-in-up delay-300 leading-relaxed max-w-xs mx-auto">
+          {script.description}
+        </p>
+
+        {/* Character preview */}
+        <div className="glass-card p-5 mb-8 animate-fade-in-up delay-400">
+          <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-4">Available Roles</h3>
+          <div className="flex justify-center gap-3 flex-wrap">
+            {script.characters.map((char, i) => (
+              <div
+                key={char.id}
+                className="group relative"
+                style={{ animationDelay: `${500 + i * 100}ms` }}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl hover:border-red-500/30 hover:bg-red-500/5 transition-all duration-300 cursor-default">
+                  {char.avatar}
+                </div>
+                <div className="text-zinc-400 text-[11px] mt-2 font-medium">{char.name}</div>
+                {/* Tooltip */}
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                  {char.description.slice(0, 30)}...
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 加入按钮 */}
+        {/* Join button */}
         <button
           onClick={joinGame}
-          className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-4 rounded-full text-lg hover:from-red-500 hover:to-red-400 transition-all"
+          className="btn-primary w-full text-lg py-4 animate-fade-in-up delay-500"
         >
-          🎭 加入游戏
+          <span>Join the Game</span>
         </button>
 
-        <p className="text-gray-500 text-sm mt-4">
-          授权后，你的 AI 将扮演一个角色
+        <p className="text-zinc-600 text-xs mt-4 animate-fade-in delay-600">
+          Your AI will take on a character role after authorization
         </p>
 
-        <a href="/" className="block mt-6 text-gray-500 hover:text-white">
-          或者自己创建房间 →
+        <a href="/" className="inline-block mt-8 text-zinc-600 hover:text-zinc-400 transition-colors text-sm animate-fade-in delay-700">
+          Or create your own room
+          <svg className="inline-block ml-1 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
       </div>
     </main>
