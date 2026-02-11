@@ -3,7 +3,7 @@
  */
 
 const SECONDME_BASE_URL = 'https://app.mindos.com/gate/lab';
-const SECONDME_AUTH_URL = 'https://go.second.me/oauth/';
+const SECONDME_AUTH_URL = 'https://second.me/oauth';
 const SECONDME_TOKEN_URL = 'https://app.mindos.com/gate/lab/api/oauth/token/code';
 
 export interface SecondMeUser {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
 import { Script } from '@/lib/types';
+import { useTranslation } from '@/i18n';
 
 function decodeRoom(encoded: string): Record<string, unknown> | null {
   try {
@@ -14,17 +15,20 @@ function decodeRoom(encoded: string): Record<string, unknown> | null {
 }
 
 function LoadingScreen() {
+  const { t } = useTranslation();
+
   return (
     <main className="min-h-screen flex items-center justify-center">
       <div className="text-center animate-fade-in">
         <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
-        <p className="text-zinc-500 text-sm">Setting up the room...</p>
+        <p className="text-zinc-500 text-sm">{t('waiting.loading')}</p>
       </div>
     </main>
   );
 }
 
 export default function WaitingPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const roomData = params.roomData as string;
 
@@ -107,6 +111,7 @@ export default function WaitingPage() {
   }
 
   const aiCharacters = getAICharacters();
+  const scriptTitle = t(`script.${script.id}.title`);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
@@ -123,10 +128,10 @@ export default function WaitingPage() {
           </div>
 
           <h1 className="text-3xl font-black text-white mb-2 animate-fade-in-up delay-100" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            {script.title}
+            {scriptTitle}
           </h1>
           <p className="text-zinc-400 text-sm animate-fade-in-up delay-200">
-            {showCharacterSelect ? 'Choose your character' : 'Room created - invite players or start'}
+            {showCharacterSelect ? t('waiting.choose-character') : t('waiting.room-created')}
           </p>
         </div>
 
@@ -135,7 +140,7 @@ export default function WaitingPage() {
             {/* Player list */}
             <div className="glass-card p-5 mb-5 animate-fade-in-up delay-300">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium">Players</h3>
+                <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium">{t('waiting.players')}</h3>
                 <span className="text-xs text-zinc-600">
                   {players.length}/{script.playerCount.max}
                 </span>
@@ -159,7 +164,7 @@ export default function WaitingPage() {
                     {player.ready && (
                       <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                        Ready
+                        {t('waiting.ready')}
                       </span>
                     )}
                   </div>
@@ -174,22 +179,22 @@ export default function WaitingPage() {
                     <div className="w-8 h-8 rounded-lg bg-white/[0.02] flex items-center justify-center">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
                     </div>
-                    <span className="text-zinc-600 text-sm">Waiting for player...</span>
+                    <span className="text-zinc-600 text-sm">{t('waiting.waiting-player')}</span>
                   </div>
                 ))}
               </div>
 
               <p className="text-zinc-600 text-xs mt-4 text-center">
-                Needs {script.playerCount.min}-{script.playerCount.max} roles
+                {t('waiting.needs-roles', { min: script.playerCount.min, max: script.playerCount.max })}
                 {players.length < script.characters.length && (
-                  <span className="text-amber-500/80 ml-1">(AI fills remaining)</span>
+                  <span className="text-amber-500/80 ml-1">{t('waiting.ai-fills')}</span>
                 )}
               </p>
             </div>
 
             {/* Invite section */}
             <div className="glass-card-strong p-5 mb-5 animate-fade-in-up delay-400">
-              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-3">Invite Link</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-3">{t('waiting.invite-link')}</p>
               <div className="bg-black/40 rounded-xl p-3 mb-4 font-mono text-xs text-red-400/80 break-all max-h-16 overflow-auto border border-white/5">
                 {inviteLink}
               </div>
@@ -203,12 +208,12 @@ export default function WaitingPage() {
                     {copied ? (
                       <span className="inline-flex items-center gap-1.5">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg>
-                        Copied
+                        {t('waiting.copied')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        Copy
+                        {t('waiting.copy')}
                       </span>
                     )}
                   </span>
@@ -218,7 +223,7 @@ export default function WaitingPage() {
                   onClick={() => setShowCharacterSelect(true)}
                   className="btn-primary text-sm py-3"
                 >
-                  <span>Choose Role</span>
+                  <span>{t('waiting.choose-role')}</span>
                 </button>
               </div>
             </div>
@@ -227,11 +232,13 @@ export default function WaitingPage() {
           <>
             {/* Character selection */}
             <div className="glass-card p-5 mb-5 animate-scale-in">
-              <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-5 text-center">Select Your Character</h3>
+              <h3 className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-5 text-center">{t('waiting.select-character')}</h3>
               <div className="space-y-3">
                 {script.characters.map((char, i) => {
                   const isSelected = mySelectedCharacter === char.id;
                   const isTakenByOther = Object.values(selectedCharacters).includes(char.id);
+                  const charName = t(`script.${script.id}.char.${char.id}.name`);
+                  const charDescription = t(`script.${script.id}.char.${char.id}.description`);
 
                   return (
                     <button
@@ -256,20 +263,20 @@ export default function WaitingPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <span className={`font-semibold transition-colors duration-300 ${isSelected ? 'text-red-400' : 'text-white'}`}>
-                              {char.name}
+                              {charName}
                             </span>
                             {isSelected && (
                               <span className="text-[10px] uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">
-                                Your Role
+                                {t('waiting.your-role')}
                               </span>
                             )}
                             {isTakenByOther && (
                               <span className="text-[10px] uppercase tracking-wider bg-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full font-bold">
-                                Taken
+                                {t('waiting.taken')}
                               </span>
                             )}
                           </div>
-                          <p className="text-zinc-500 text-sm mt-1 leading-relaxed">{char.description}</p>
+                          <p className="text-zinc-500 text-sm mt-1 leading-relaxed">{charDescription}</p>
                         </div>
                       </div>
                     </button>
@@ -283,15 +290,19 @@ export default function WaitingPage() {
               <div className="glass-card p-4 mb-5 border-purple-500/20 animate-fade-in-up" style={{ background: 'rgba(139, 92, 246, 0.05)' }}>
                 <div className="flex items-center gap-2 mb-3">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                  <h3 className="text-xs uppercase tracking-[0.15em] text-purple-400 font-medium">AI-Controlled Roles</h3>
+                  <h3 className="text-xs uppercase tracking-[0.15em] text-purple-400 font-medium">{t('waiting.ai-controlled')}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {aiCharacters.map(char => (
-                    <div key={char.id} className="inline-flex items-center gap-2 bg-white/[0.03] rounded-lg px-3 py-2 border border-purple-500/10">
-                      <span className="text-lg">{char.avatar}</span>
-                      <span className="text-zinc-300 text-sm">{char.name}</span>
-                    </div>
-                  ))}
+                  {aiCharacters.map(char => {
+                    const charName = t(`script.${script.id}.char.${char.id}.name`);
+
+                    return (
+                      <div key={char.id} className="inline-flex items-center gap-2 bg-white/[0.03] rounded-lg px-3 py-2 border border-purple-500/10">
+                        <span className="text-lg">{char.avatar}</span>
+                        <span className="text-zinc-300 text-sm">{charName}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -302,7 +313,7 @@ export default function WaitingPage() {
               disabled={!canStart}
               className="btn-primary w-full text-lg py-4 mb-4 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none animate-fade-in-up delay-200"
             >
-              <span>Start the Game</span>
+              <span>{t('waiting.start-game')}</span>
             </button>
 
             <button
@@ -313,14 +324,14 @@ export default function WaitingPage() {
               className="w-full text-center text-zinc-500 hover:text-zinc-300 transition-colors text-sm py-2"
             >
               <svg className="inline-block w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-              Back to lobby
+              {t('waiting.back-lobby')}
             </button>
           </>
         )}
 
         <a href="/" className="block mt-8 text-center text-zinc-600 hover:text-zinc-400 transition-colors text-sm animate-fade-in delay-600">
           <svg className="inline-block w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          Home
+          {t('waiting.home')}
         </a>
       </div>
     </main>

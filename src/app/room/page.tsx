@@ -4,19 +4,23 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
 import { Script } from '@/lib/types';
+import { useTranslation } from '@/i18n';
 
 function LoadingSpinner() {
+  const { t } = useTranslation();
+
   return (
     <main className="min-h-screen flex items-center justify-center">
       <div className="text-center animate-fade-in">
         <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
-        <p className="text-zinc-500 text-sm">Loading...</p>
+        <p className="text-zinc-500 text-sm">{t('room.loading')}</p>
       </div>
     </main>
   );
 }
 
 function RoomContent() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const scriptId = searchParams.get('script');
 
@@ -59,10 +63,10 @@ function RoomContent() {
         <div className="w-10 h-10 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-6" />
 
         <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-          Creating Room...
+          {t('room.creating')}
         </h2>
         <p className="text-zinc-500 text-sm">
-          Redirecting to authorization
+          {t('room.redirecting')}
         </p>
 
         {/* Progress dots */}

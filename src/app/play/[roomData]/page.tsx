@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
 import { Script, Character, Dialogue } from '@/lib/types';
+import { useTranslation } from '@/i18n';
 import html2canvas from 'html2canvas';
 
 function decodeRoom(encoded: string): Record<string, unknown> | null {
@@ -43,15 +44,20 @@ function DialogueBubble({
   isPlayer,
   hasPlayerCharacter,
   index,
+  scriptId,
 }: {
   dialogue: Dialogue;
   character: Character | undefined;
   isPlayer: boolean;
   hasPlayerCharacter: boolean;
   index: number;
+  scriptId: string;
 }) {
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const charName = character ? t(`script.${scriptId}.char.${character.id}.name`) : undefined;
 
   const playAudio = () => {
     if (dialogue.audioUrl) {
@@ -85,16 +91,16 @@ function DialogueBubble({
         {/* Name + badges */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`font-semibold text-sm ${isPlayer ? 'text-purple-300' : 'text-white'}`}>
-            {character?.name}
+            {charName}
           </span>
           {isPlayer && (
             <span className="text-[9px] uppercase tracking-wider bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-bold">
-              You
+              {t('play.you')}
             </span>
           )}
           {!isPlayer && hasPlayerCharacter && (
             <span className="text-[9px] uppercase tracking-wider bg-white/5 text-zinc-500 px-1.5 py-0.5 rounded font-bold">
-              AI
+              {t('play.ai')}
             </span>
           )}
         </div>
@@ -116,17 +122,17 @@ function DialogueBubble({
                   <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
                   <span className="w-0.5 h-3.5 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
                 </span>
-                Playing
+                {t('play.playing')}
               </>
             ) : (
               <>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Voice
+                {t('play.voice')}
               </>
             )}
           </button>
         ) : (
-          <span className="text-[10px] text-zinc-700">no voice</span>
+          <span className="text-[10px] text-zinc-700">{t('play.no-voice')}</span>
         )}
       </div>
 
@@ -144,6 +150,8 @@ function DialogueBubble({
 }
 
 function GeneratingIndicator() {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center justify-center gap-3 py-8 animate-fade-in">
       <div className="flex gap-1">
@@ -151,7 +159,7 @@ function GeneratingIndicator() {
         <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{ animationDelay: '150ms' }} />
         <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
-      <span className="text-zinc-500 text-sm">AI characters are speaking...</span>
+      <span className="text-zinc-500 text-sm">{t('play.ai-speaking')}</span>
     </div>
   );
 }
@@ -159,17 +167,22 @@ function GeneratingIndicator() {
 function VoteCard({
   character,
   onVote,
+  scriptId,
 }: {
   character: Character;
   onVote: (id: string) => void;
+  scriptId: string;
 }) {
+  const { t } = useTranslation();
+  const charName = t(`script.${scriptId}.char.${character.id}.name`);
+
   return (
     <button
       onClick={() => onVote(character.id)}
       className="group glass-card p-5 text-center hover:border-red-500/40 hover:bg-red-500/5 active:scale-95 transition-all duration-300"
     >
       <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300">{character.avatar}</div>
-      <div className="text-white font-semibold text-sm">{character.name}</div>
+      <div className="text-white font-semibold text-sm">{charName}</div>
     </button>
   );
 }
@@ -179,6 +192,7 @@ function VoteCard({
    ============================================ */
 
 function PlayContent() {
+  const { t } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();
   const roomData = params.roomData as string;
@@ -324,7 +338,7 @@ function PlayContent() {
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center animate-fade-in">
           <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500 text-sm">Loading script...</p>
+          <p className="text-zinc-500 text-sm">{t('play.loading')}</p>
         </div>
       </main>
     );
@@ -334,6 +348,10 @@ function PlayContent() {
   const sceneDialogues = dialogues.filter(d => d.scene === currentScene);
   const hasDialogues = sceneDialogues.length > 0;
 
+  const scriptTitle = t(`script.${script.id}.title`);
+  const sceneTitle = t(`script.${script.id}.scene.${currentSceneData?.id}.title`);
+  const sceneDescription = t(`script.${script.id}.scene.${currentSceneData?.id}.description`);
+
   return (
     <>
       {/* Scene transition overlay */}
@@ -341,7 +359,7 @@ function PlayContent() {
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center animate-fade-in">
           <div className="text-center">
             <div className="w-8 h-[1px] bg-red-500/50 mx-auto mb-4" />
-            <p className="text-zinc-500 text-xs uppercase tracking-[0.3em]">Next Scene</p>
+            <p className="text-zinc-500 text-xs uppercase tracking-[0.3em]">{t('play.next-scene-transition')}</p>
             <div className="w-8 h-[1px] bg-red-500/50 mx-auto mt-4" />
           </div>
         </div>
@@ -352,7 +370,7 @@ function PlayContent() {
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center animate-fade-in">
           <div className="text-center">
             <div className="w-16 h-16 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-6" />
-            <p className="text-zinc-400 text-sm">Revealing the truth...</p>
+            <p className="text-zinc-400 text-sm">{t('play.revealing')}</p>
           </div>
         </div>
       )}
@@ -364,7 +382,7 @@ function PlayContent() {
             <div className="flex items-center justify-center gap-3 mb-3">
               <span className="text-3xl">{script.cover}</span>
               <h1 className="text-xl md:text-2xl font-black text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                {script.title}
+                {scriptTitle}
               </h1>
             </div>
 
@@ -372,7 +390,7 @@ function PlayContent() {
               <div className="flex flex-col items-center gap-2">
                 <SceneProgressBar current={currentScene} total={script.scenes.length} />
                 <p className="text-zinc-500 text-xs">
-                  Scene {currentScene + 1}: <span className="text-zinc-400">{currentSceneData?.title}</span>
+                  {t('play.scene-label', { n: currentScene + 1, title: sceneTitle })}
                 </p>
               </div>
             )}
@@ -380,7 +398,7 @@ function PlayContent() {
             {hasPlayerCharacter && aiCharacters.length > 0 && !gameEnded && (
               <div className="inline-flex items-center gap-1.5 mt-2 text-xs text-purple-400/80 bg-purple-500/10 rounded-full px-3 py-1">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                AI controls {aiCharacters.length} role{aiCharacters.length > 1 ? 's' : ''}
+                {t('play.ai-controls', { count: aiCharacters.length })}
               </div>
             )}
           </header>
@@ -389,53 +407,62 @@ function PlayContent() {
             {/* Sidebar: Player character info */}
             {hasPlayerCharacter && !gameEnded && (
               <aside className="lg:w-72 flex-shrink-0 space-y-4 animate-slide-in-left delay-200">
-                {myCharacters.map(char => (
-                  <div key={char.id} className="glass-card-strong p-4 lg:sticky lg:top-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-2xl">
-                        {char.avatar}
+                {myCharacters.map(char => {
+                  const charName = t(`script.${script.id}.char.${char.id}.name`);
+                  const charDescription = t(`script.${script.id}.char.${char.id}.description`);
+
+                  return (
+                    <div key={char.id} className="glass-card-strong p-4 lg:sticky lg:top-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-2xl">
+                          {char.avatar}
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">{charName}</p>
+                          <p className="text-[10px] uppercase tracking-wider text-purple-400">{t('play.your-character')}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-white font-semibold text-sm">{char.name}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-purple-400">Your Character</p>
-                      </div>
+
+                      <p className="text-zinc-500 text-xs leading-relaxed mb-4">{charDescription}</p>
+
+                      <button
+                        onClick={() => setShowMyInfo(!showMyInfo)}
+                        className="w-full text-left text-xs flex items-center gap-2 text-red-400/80 hover:text-red-400 transition-colors mb-2 group"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transition-transform duration-200 group-hover:scale-110">
+                          {showMyInfo ? (
+                            <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>
+                          ) : (
+                            <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>
+                          )}
+                        </svg>
+                        {showMyInfo ? t('play.hide-secret') : t('play.view-secret')}
+                      </button>
+
+                      {showMyInfo && (
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-xs text-zinc-300 leading-relaxed animate-scale-in">
+                          {char.secretInfo}
+                        </div>
+                      )}
                     </div>
-
-                    <p className="text-zinc-500 text-xs leading-relaxed mb-4">{char.description}</p>
-
-                    <button
-                      onClick={() => setShowMyInfo(!showMyInfo)}
-                      className="w-full text-left text-xs flex items-center gap-2 text-red-400/80 hover:text-red-400 transition-colors mb-2 group"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transition-transform duration-200 group-hover:scale-110">
-                        {showMyInfo ? (
-                          <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>
-                        ) : (
-                          <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>
-                        )}
-                      </svg>
-                      {showMyInfo ? 'Hide' : 'View'} Secret Info
-                    </button>
-
-                    {showMyInfo && (
-                      <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-xs text-zinc-300 leading-relaxed animate-scale-in">
-                        {char.secretInfo}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* AI character list */}
                 {aiCharacters.length > 0 && (
                   <div className="glass-card p-3">
-                    <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-600 font-medium mb-2">AI Roles</p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-600 font-medium mb-2">{t('play.ai-roles')}</p>
                     <div className="space-y-1.5">
-                      {aiCharacters.map(char => (
-                        <div key={char.id} className="flex items-center gap-2 text-xs">
-                          <span className="text-base">{char.avatar}</span>
-                          <span className="text-zinc-400">{char.name}</span>
-                        </div>
-                      ))}
+                      {aiCharacters.map(char => {
+                        const charName = t(`script.${script.id}.char.${char.id}.name`);
+
+                        return (
+                          <div key={char.id} className="flex items-center gap-2 text-xs">
+                            <span className="text-base">{char.avatar}</span>
+                            <span className="text-zinc-400">{charName}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -453,8 +480,8 @@ function PlayContent() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-1.5">Scene Description</p>
-                        <p className="text-zinc-300 text-sm leading-relaxed">{currentSceneData?.description}</p>
+                        <p className="text-xs uppercase tracking-[0.15em] text-zinc-500 font-medium mb-1.5">{t('play.scene-description')}</p>
+                        <p className="text-zinc-300 text-sm leading-relaxed">{sceneDescription}</p>
                       </div>
                     </div>
                   </div>
@@ -473,6 +500,7 @@ function PlayContent() {
                           isPlayer={isMyChar}
                           hasPlayerCharacter={hasPlayerCharacter}
                           index={i}
+                          scriptId={script.id}
                         />
                       );
                     })}
@@ -489,7 +517,7 @@ function PlayContent() {
                         disabled={generating}
                         className="btn-primary px-10 py-3.5 text-base disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
                       >
-                        <span>{generating ? 'Generating...' : 'Begin This Scene'}</span>
+                        <span>{generating ? t('play.generating') : t('play.begin-scene')}</span>
                       </button>
                     ) : (
                       <button
@@ -500,11 +528,11 @@ function PlayContent() {
                         <span>
                           {currentScene < script.scenes.length - 1 ? (
                             <span className="inline-flex items-center gap-2">
-                              Next Scene
+                              {t('play.next-scene')}
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </span>
                           ) : (
-                            'Cast Your Vote'
+                            t('play.cast-vote')
                           )}
                         </span>
                       </button>
@@ -521,14 +549,14 @@ function PlayContent() {
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-red-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
                         </div>
                         <h2 className="text-2xl font-black text-white mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                          Who is the Killer?
+                          {t('play.who-is-killer')}
                         </h2>
-                        <p className="text-zinc-500 text-sm">Choose wisely. There is only one chance.</p>
+                        <p className="text-zinc-500 text-sm">{t('play.choose-wisely')}</p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 mb-4">
                         {script.characters.map((char) => (
-                          <VoteCard key={char.id} character={char} onVote={handleVote} />
+                          <VoteCard key={char.id} character={char} onVote={handleVote} scriptId={script.id} />
                         ))}
                       </div>
 
@@ -539,7 +567,7 @@ function PlayContent() {
                       >
                         <div className="flex items-center justify-center gap-3">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-500"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-                          <span className="text-white font-semibold text-sm">Someone Else</span>
+                          <span className="text-white font-semibold text-sm">{t('play.someone-else')}</span>
                         </div>
                       </button>
                     </div>
@@ -560,21 +588,23 @@ function PlayContent() {
                       </div>
 
                       <h2 className="text-3xl font-black text-white mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                        {result.won ? 'Case Solved!' : 'Wrong Deduction!'}
+                        {result.won ? t('play.case-solved') : t('play.wrong-deduction')}
                       </h2>
                       <p className="text-zinc-500 text-sm mb-8">
-                        {result.won ? 'Your reasoning was flawless.' : 'The real killer slipped through your fingers.'}
+                        {result.won ? t('play.reasoning-flawless') : t('play.killer-escaped')}
                       </p>
 
                       {/* True murderer reveal */}
                       <div className="glass-card p-6 mb-6 inline-block">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 mb-3">The Real Killer</p>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 mb-3">{t('play.real-killer')}</p>
                         <div className="flex items-center justify-center gap-4">
                           <div className="avatar-ring is-murderer w-16 h-16 text-4xl">
                             {script.characters.find(c => c.id === result.murdererId)?.avatar || '?'}
                           </div>
                           <span className="text-2xl font-black text-red-500" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                            {script.characters.find(c => c.id === result.murdererId)?.name || 'Unknown'}
+                            {result.murdererId !== 'other'
+                              ? t(`script.${script.id}.char.${result.murdererId}.name`)
+                              : 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -591,7 +621,7 @@ function PlayContent() {
                         >
                           <span className="relative z-10 inline-flex items-center gap-2">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                            Save Result
+                            {t('play.save-result')}
                           </span>
                         </button>
                         <a
@@ -600,7 +630,7 @@ function PlayContent() {
                         >
                           <span className="inline-flex items-center gap-2">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                            Play Again
+                            {t('play.play-again')}
                           </span>
                         </a>
                       </div>
@@ -617,12 +647,14 @@ function PlayContent() {
 }
 
 export default function PlayPage() {
+  const { t } = useTranslation();
+
   return (
     <Suspense fallback={
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center animate-fade-in">
           <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500 text-sm">Preparing the game...</p>
+          <p className="text-zinc-500 text-sm">{t('play.preparing')}</p>
         </div>
       </main>
     }>
