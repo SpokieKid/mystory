@@ -252,7 +252,7 @@ function PlayContent() {
                             {!isMyCharacter && hasPlayerCharacter && (
                               <span className="text-xs bg-gray-500/30 text-gray-400 px-2 py-0.5 rounded">AI</span>
                             )}
-                            {dialogue.audioUrl && (
+                            {dialogue.audioUrl ? (
                               <button
                                 onClick={() => {
                                   const audio = new Audio(dialogue.audioUrl!);
@@ -260,8 +260,10 @@ function PlayContent() {
                                 }}
                                 className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded hover:bg-green-500/50 transition"
                               >
-                                🔊 播放语音
+                                🔊 播放
                               </button>
+                            ) : (
+                              <span className="text-xs text-gray-500">无语音</span>
                             )}
                           </div>
                           <p className="text-gray-300 pl-10">{dialogue.content}</p>
