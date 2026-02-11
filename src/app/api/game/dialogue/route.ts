@@ -7,7 +7,17 @@ import { Dialogue } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { scriptId, sceneIndex, previousDialogues, roomId, soloMode, myCharacterId } = body;
+  const { 
+    scriptId, 
+    sceneIndex, 
+    previousDialogues, 
+    roomId, 
+    playerCharacterIds = [],  // 玩家扮演的角色
+    aiCharacterIds = [],      // AI 扮演的角色
+    // 兼容旧参数
+    soloMode,
+    myCharacterId 
+  } = body;
 
   const script = getScriptById(scriptId);
   if (!script) {
@@ -25,23 +35,28 @@ export async function POST(request: NextRequest) {
   // 获取房间信息
   const room = roomId ? getRoom(roomId) : null;
 
+  // 兼容旧的单人模式参数
+  const effectivePlayerCharacterIds = playerCharacterIds.length > 0 
+    ? playerCharacterIds 
+    : (myCharacterId ? [myCharacterId] : []);
+
   const dialogues: Dialogue[] = [];
 
   // 为每个角色生成对话
   for (const character of script.characters) {
+    const isPlayerCharacter = effectivePlayerCharacterIds.includes(character.id);
+    const isAICharacter = aiCharacterIds.includes(character.id) || 
+      (effectivePlayerCharacterIds.length > 0 && !isPlayerCharacter);
+
     let token: string | null = null;
 
-    if (soloMode) {
-      // 单人模式：
-      // - 玩家的角色用玩家的 token
-      // - AI 的角色也用玩家的 token（但角色不同）
-      token = userToken;
-    } else {
-      // 多人模式：尝试获取该角色对应玩家的 token
+    if (isPlayerCharacter) {
+      // 玩家角色：使用玩家的 token
       token = room ? getPlayerToken(roomId, character.id) : null;
-      if (!token) {
-        token = userToken;
-      }
+      if (!token) token = userToken;
+    } else {
+      // AI 角色：也使用玩家的 token（让 Second Me 扮演不同角色）
+      token = userToken;
     }
 
     if (!token) {
@@ -58,10 +73,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 单人模式下，给 AI 角色添加额外提示
+      // AI 角色添加额外提示
       let extraPrompt = '';
-      if (soloMode && character.id !== myCharacterId) {
-        extraPrompt = '\n\n【特别提示】你是 AI 扮演的角色，要积极推进剧情，可以适当表现出怀疑或辩护。';
+      if (isAICharacter) {
+        extraPrompt = '\n\n【重要】你是 AI 扮演的角色，请积极推进剧情，表现出怀疑、质问或自我辩护。保持角色特点，让对话更加精彩。';
       }
 
       const content = await generateDialogue(
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
 
       dialogues.push({
         id: `${scriptId}-${sceneIndex}-${character.id}-${Date.now()}`,
-        odPlayerId: soloMode && character.id === myCharacterId ? 'player' : 'ai',
+        odPlayerId: isPlayerCharacter ? 'player' : 'ai',
         characterId: character.id,
         content,
         timestamp: new Date().toISOString(),

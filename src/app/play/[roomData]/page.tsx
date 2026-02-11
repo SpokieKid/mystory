@@ -19,9 +19,13 @@ function PlayContent() {
   const searchParams = useSearchParams();
   const roomData = params.roomData as string;
   
-  // 单人模式参数
-  const isSoloMode = searchParams.get('solo') === 'true';
-  const myCharacterId = searchParams.get('myCharacter');
+  // 角色分配参数
+  const playerCharacterIds = searchParams.get('playerCharacters')?.split(',').filter(Boolean) || [];
+  const aiCharacterIds = searchParams.get('aiCharacters')?.split(',').filter(Boolean) || [];
+  
+  // 兼容旧的单人模式参数
+  const legacySolo = searchParams.get('solo') === 'true';
+  const legacyMyCharacter = searchParams.get('myCharacter');
   
   const [script, setScript] = useState<Script | null>(null);
   const [currentScene, setCurrentScene] = useState(0);
@@ -33,8 +37,18 @@ function PlayContent() {
   const [result, setResult] = useState<{ won: boolean; murdererId: string } | null>(null);
   const [showMyInfo, setShowMyInfo] = useState(false);
 
-  const myCharacter = script?.characters.find(c => c.id === myCharacterId);
-  const aiCharacter = script?.characters.find(c => c.id !== myCharacterId);
+  // 确定玩家和 AI 的角色
+  const myCharacterIds = playerCharacterIds.length > 0 
+    ? playerCharacterIds 
+    : (legacyMyCharacter ? [legacyMyCharacter] : []);
+  
+  const myCharacters = script?.characters.filter(c => myCharacterIds.includes(c.id)) || [];
+  const aiCharacters = script?.characters.filter(c => 
+    aiCharacterIds.includes(c.id) || 
+    (myCharacterIds.length > 0 && !myCharacterIds.includes(c.id))
+  ) || [];
+
+  const hasPlayerCharacter = myCharacterIds.length > 0;
 
   useEffect(() => {
     const decoded = decodeRoom(roomData);
@@ -62,8 +76,8 @@ function PlayContent() {
           scriptId: script.id,
           sceneIndex: currentScene,
           roomId,
-          soloMode: isSoloMode,
-          myCharacterId: myCharacterId,
+          playerCharacterIds: myCharacterIds,
+          aiCharacterIds: aiCharacters.map(c => c.id),
           previousDialogues: dialogues.map(d => {
             const char = script.characters.find(c => c.id === d.characterId);
             return `${char?.name || '???'}：${d.content}`;
@@ -105,9 +119,12 @@ function PlayContent() {
     setVotes(newVotes);
 
     const murderer = script.characters.find(c => c.isMurderer);
+    const isCorrect = characterId === murderer?.id || 
+      (characterId === 'other' && !murderer);
+    
     setResult({
-      won: characterId === murderer?.id,
-      murdererId: murderer?.id || '',
+      won: isCorrect,
+      murdererId: murderer?.id || 'other',
     });
   };
 
@@ -135,58 +152,70 @@ function PlayContent() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
             <span className="text-4xl">{script.cover}</span>
             <h1 className="text-2xl font-bold text-white">{script.title}</h1>
-            {isSoloMode && (
-              <span className="text-xs bg-purple-500 px-2 py-1 rounded-full">单人模式</span>
-            )}
           </div>
           {!gameEnded && (
             <p className="text-gray-400">
               场景 {currentScene + 1}/{script.scenes.length}：{currentSceneData?.title}
             </p>
           )}
+          {hasPlayerCharacter && aiCharacters.length > 0 && (
+            <p className="text-purple-400 text-sm mt-1">
+              🤖 AI 扮演 {aiCharacters.length} 个角色
+            </p>
+          )}
         </div>
 
         <div className="flex gap-6">
-          {/* 左侧：角色信息（单人模式） */}
-          {isSoloMode && myCharacter && !gameEnded && (
-            <div className="w-80 flex-shrink-0">
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 sticky top-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{myCharacter.avatar}</span>
-                  <div>
-                    <p className="text-white font-medium">{myCharacter.name}</p>
-                    <p className="text-xs text-purple-400">你的角色</p>
+          {/* 左侧：玩家角色信息 */}
+          {hasPlayerCharacter && !gameEnded && (
+            <div className="w-80 flex-shrink-0 space-y-4">
+              {myCharacters.map(char => (
+                <div key={char.id} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30 sticky top-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-3xl">{char.avatar}</span>
+                    <div>
+                      <p className="text-white font-medium">{char.name}</p>
+                      <p className="text-xs text-purple-400">你的角色</p>
+                    </div>
                   </div>
+                  
+                  <p className="text-gray-400 text-sm mb-4">{char.description}</p>
+                  
+                  <button
+                    onClick={() => setShowMyInfo(!showMyInfo)}
+                    className="w-full text-left text-sm text-red-400 hover:text-red-300 mb-2"
+                  >
+                    🔒 {showMyInfo ? '隐藏' : '查看'}秘密信息
+                  </button>
+                  
+                  {showMyInfo && (
+                    <div className="bg-red-500/10 rounded-lg p-3 text-sm text-gray-300 border border-red-500/30">
+                      {char.secretInfo}
+                    </div>
+                  )}
                 </div>
-                
-                <p className="text-gray-400 text-sm mb-4">{myCharacter.description}</p>
-                
-                <button
-                  onClick={() => setShowMyInfo(!showMyInfo)}
-                  className="w-full text-left text-sm text-red-400 hover:text-red-300 mb-2"
-                >
-                  🔒 {showMyInfo ? '隐藏' : '查看'}秘密信息
-                </button>
-                
-                {showMyInfo && (
-                  <div className="bg-red-500/10 rounded-lg p-3 text-sm text-gray-300 border border-red-500/30">
-                    {myCharacter.secretInfo}
-                  </div>
-                )}
+              ))}
 
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center gap-2 text-gray-500 text-sm">
-                    <span>🤖</span>
-                    <span>AI 扮演：{aiCharacter?.name}</span>
+              {/* AI 角色列表 */}
+              {aiCharacters.length > 0 && (
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <h4 className="text-gray-400 text-sm mb-3">🤖 AI 角色</h4>
+                  <div className="space-y-2">
+                    {aiCharacters.map(char => (
+                      <div key={char.id} className="flex items-center gap-2 text-sm">
+                        <span>{char.avatar}</span>
+                        <span className="text-gray-300">{char.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -205,7 +234,7 @@ function PlayContent() {
                     .filter(d => d.scene === currentScene)
                     .map((dialogue, i) => {
                       const char = script.characters.find(c => c.id === dialogue.characterId);
-                      const isMyCharacter = char?.id === myCharacterId;
+                      const isMyCharacter = myCharacterIds.includes(char?.id || '');
                       
                       return (
                         <div 
@@ -220,7 +249,7 @@ function PlayContent() {
                             {isMyCharacter && (
                               <span className="text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded">你</span>
                             )}
-                            {!isMyCharacter && isSoloMode && (
+                            {!isMyCharacter && hasPlayerCharacter && (
                               <span className="text-xs bg-gray-500/30 text-gray-400 px-2 py-0.5 rounded">AI</span>
                             )}
                           </div>
@@ -304,7 +333,7 @@ function PlayContent() {
                     </div>
 
                     <p className="text-gray-400 text-sm mb-6">
-                      {script.characters.find(c => c.id === result.murdererId)?.secretInfo || '凶手另有其人，不在嫌疑人之列！'}
+                      {script.characters.find(c => c.id === result.murdererId)?.secretInfo || '凶手另有其人！'}
                     </p>
 
                     <div className="flex gap-4 justify-center">
