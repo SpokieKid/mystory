@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { SCRIPTS } from '@/data/scripts';
-import { Script } from '@/lib/types';
+import { Script, Character } from '@/lib/types';
 
 function decodeRoom(encoded: string): any | null {
   try {
@@ -22,6 +22,8 @@ export default function WaitingPage() {
   const [copied, setCopied] = useState(false);
   const [players, setPlayers] = useState<Array<{ name: string; characterId?: string; ready: boolean }>>([]);
   const [polling, setPolling] = useState(true);
+  const [showSoloMode, setShowSoloMode] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   
   const inviteLink = typeof window !== 'undefined' 
     ? `${window.location.origin}/join/${roomData}`
@@ -68,6 +70,12 @@ export default function WaitingPage() {
     window.location.href = `/play/${roomData}`;
   };
 
+  const startSoloGame = () => {
+    if (!selectedCharacter) return;
+    // 单人模式 - 带上选择的角色参数
+    window.location.href = `/play/${roomData}?solo=true&myCharacter=${selectedCharacter}`;
+  };
+
   if (!script) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex items-center justify-center">
@@ -87,51 +95,119 @@ export default function WaitingPage() {
         <h1 className="text-3xl font-bold text-white mb-2">
           {script.title}
         </h1>
-        <p className="text-gray-400 mb-8">房间已创建，邀请好友加入</p>
-
-        {/* 角色列表 */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
-          <h3 className="text-white font-medium mb-3">角色列表</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {script.characters.map((char) => (
-              <div key={char.id} className="bg-white/5 rounded-xl p-3 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{char.avatar}</span>
-                  <span className="text-white text-sm">{char.name}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-gray-500 text-xs mt-3">
-            需要 {script.playerCount.min}-{script.playerCount.max} 名玩家
-          </p>
-        </div>
-
-        {/* 邀请链接 */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6">
-          <p className="text-white/60 text-sm mb-3">邀请链接</p>
-          <div className="bg-black/30 rounded-xl p-3 mb-4 break-all text-xs text-red-400 max-h-20 overflow-auto">
-            {inviteLink}
-          </div>
-          
-          <button
-            onClick={copyLink}
-            className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-3 rounded-full hover:from-red-500 hover:to-red-400 transition-all mb-3"
-          >
-            {copied ? '✅ 已复制' : '📋 复制邀请链接'}
-          </button>
-
-          <button
-            onClick={startGame}
-            className="w-full bg-white/10 text-white font-bold py-3 rounded-full hover:bg-white/20 transition-all"
-          >
-            🎬 直接开始（AI 自动分配角色）
-          </button>
-        </div>
-
-        <p className="text-gray-500 text-sm">
-          好友加入后会自动分配角色，也可以直接开始让 AI 演绎
+        <p className="text-gray-400 mb-8">
+          {showSoloMode ? '选择你要扮演的角色' : '房间已创建，邀请好友加入'}
         </p>
+
+        {!showSoloMode ? (
+          <>
+            {/* 角色列表 */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
+              <h3 className="text-white font-medium mb-3">角色列表</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {script.characters.map((char) => (
+                  <div key={char.id} className="bg-white/5 rounded-xl p-3 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{char.avatar}</span>
+                      <span className="text-white text-sm">{char.name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-500 text-xs mt-3">
+                需要 {script.playerCount.min}-{script.playerCount.max} 名玩家
+              </p>
+            </div>
+
+            {/* 邀请链接 */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6">
+              <p className="text-white/60 text-sm mb-3">邀请链接</p>
+              <div className="bg-black/30 rounded-xl p-3 mb-4 break-all text-xs text-red-400 max-h-20 overflow-auto">
+                {inviteLink}
+              </div>
+              
+              <button
+                onClick={copyLink}
+                className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-3 rounded-full hover:from-red-500 hover:to-red-400 transition-all mb-3"
+              >
+                {copied ? '✅ 已复制' : '📋 复制邀请链接'}
+              </button>
+
+              <button
+                onClick={() => setShowSoloMode(true)}
+                className="w-full bg-white/10 text-white font-bold py-3 rounded-full hover:bg-white/20 transition-all"
+              >
+                🤖 单人模式（AI 对战）
+              </button>
+            </div>
+
+            <p className="text-gray-500 text-sm">
+              好友加入后会自动分配角色，或选择单人模式与 AI 对战
+            </p>
+          </>
+        ) : (
+          <>
+            {/* 单人模式 - 角色选择 */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/10">
+              <h3 className="text-white font-medium mb-4">选择你的角色</h3>
+              <div className="space-y-3">
+                {script.characters.map((char) => (
+                  <button
+                    key={char.id}
+                    onClick={() => setSelectedCharacter(char.id)}
+                    className={`w-full p-4 rounded-xl text-left transition-all border-2 ${
+                      selectedCharacter === char.id
+                        ? 'bg-red-500/30 border-red-500'
+                        : 'bg-white/5 border-transparent hover:border-red-500/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl">{char.avatar}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white font-medium">{char.name}</span>
+                          {selectedCharacter === char.id && (
+                            <span className="text-xs bg-red-500 px-2 py-1 rounded text-white">你的角色</span>
+                          )}
+                        </div>
+                        <p className="text-gray-400 text-sm mt-1">{char.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              {selectedCharacter && (
+                <div className="mt-4 p-3 bg-white/5 rounded-xl">
+                  <p className="text-gray-400 text-sm">
+                    🤖 AI 将扮演：
+                    <span className="text-white ml-1">
+                      {script.characters.find(c => c.id !== selectedCharacter)?.name}
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={startSoloGame}
+              disabled={!selectedCharacter}
+              className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold py-4 rounded-full hover:from-red-500 hover:to-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+            >
+              🎬 开始游戏
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSoloMode(false);
+                setSelectedCharacter(null);
+              }}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              ← 返回
+            </button>
+          </>
+        )}
 
         <a href="/" className="block mt-6 text-gray-500 hover:text-white">
           ← 返回首页
