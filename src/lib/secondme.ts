@@ -136,7 +136,7 @@ export async function generateVoice(
   text: string
 ): Promise<string | null> {
   try {
-    const response = await fetch(`${SECONDME_BASE_URL}/api/secondme/voice`, {
+    const response = await fetch(`${SECONDME_BASE_URL}/api/secondme/tts/generate`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -156,8 +156,8 @@ export async function generateVoice(
       return null;
     }
 
-    // 返回音频 URL
-    return data.data?.url || data.data?.audioUrl || null;
+    // 返回音频 URL (官方文档格式: data.data.url)
+    return data.data?.url || null;
   } catch (err) {
     console.error('Voice generation error:', err);
     return null;
